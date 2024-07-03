@@ -1,113 +1,160 @@
-import Image from "next/image";
+"use client";
+import React from "react";
 
+import { Minus, Mouse, MousePointer, Square } from "lucide-react";
+import Image from "next/image";
+import { useLayoutEffect, useState } from "react";
+import rough from "roughjs";
+const generator = rough.generator();
+const CreateElement = (id, x1, y1, x2, y2, type) => {
+  const roughElement =
+    type == "line"
+      ? generator.line(x1, y1, x2, y2)
+      : generator.rectangle(x1, y1, x2 - x1, y2 - y1);
+  return { id, x1, y1, x2, y2, type, roughElement };
+};
+const distance = (a, b) =>
+  Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
+const iswithinelement = (x, y, element) => {
+  const { x1, y1, x2, y2, type } = element;
+
+  if (type == "rectangle") {
+    const minX = Math.min(x1, x2);
+    const maxX = Math.max(x1, x2);
+    const minY = Math.min(y1, y2);
+    const maxY = Math.max(y1, y2);
+    console.log(minX);
+    return x >= minX && x <= maxX && y <= maxY && y >= minY;
+  } else {
+    const c = { x, y };
+    const a = { x: x1, y: y1 };
+    const b = { x: x2, y: y2 };
+    console.log(a, c, b);
+    const offset = distance(a, b) - (distance(a, c) + distance(c, b));
+    console.log(offset);
+    return Math.abs(offset) < 1;
+  }
+};
+
+const getElementAtPosition = (x, y, elements) => {
+  return elements.find((element) => iswithinelement(x, y, element));
+};
 export default function Home() {
+  const [elements, setelements] = useState([]);
+  const [action, setAction] = useState("none");
+  const [elementType, setElementType] = useState("line");
+  const [tool, setTool] = useState("line");
+  const [selectedElement, setSelectedElement] = useState();
+  // const [ac,setdrawing]= useState(false);
+
+  useLayoutEffect(() => {
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const roughcanvas = rough.canvas(canvas);
+    elements.forEach(({ roughElement }) => roughcanvas.draw(roughElement));
+  }, [elements]);
+
+  const handleMouseDown = (event) => {
+    const { clientX, clientY } = event;
+
+    if (tool == "selection") {
+      const element = getElementAtPosition(clientX, clientY, elements);
+      setSelectedElement(element);
+
+      if (element) {
+        console.log(element);
+        setAction("moving");
+      }
+    } else {
+      setAction("drawing");
+      const id = elements[elements.length];
+      const intialpoint = CreateElement(
+        id,
+        clientX,
+        clientY,
+        clientX,
+        clientY,
+        elementType
+      );
+      setelements((oldstate) => [...oldstate, intialpoint]);
+    }
+  };
+
+  const updateElement = (id, x1, y1, x2, y2, type) => {
+    const element = CreateElement(id, x1, y1, x2, y2, type);
+    const oldelements = [...elements];
+    oldelements[id] = element;
+    setelements(oldelements);
+  };
+  const handleMouseMove = (event) => {
+    const { clientX, clientY } = event;
+
+    if (action == "drawing") {
+      const index = elements.length - 1;
+      const { x1, y1 } = elements[index];
+      updateElement(index, x1, y1, clientX, clientY, tool);
+
+      setAction("drawing");
+    } else if (action === "moving") {
+      const { id, x1, y1, x2, y2, type } = selectedElement;
+      const width = x2 - x1;
+      const height = y2 - y1;
+      updateElement(
+        id,
+        clientX,
+        clientY,
+        clientX + width,
+        clientY + height,
+        type
+      );
+    }
+  };
+
+  const handleMouseUp = (event) => {
+    setAction("none");
+  };
+
+  const tools = [
+    {
+      tool: "selection",
+      icon: Mouse,
+    },
+    {
+      tool: "rectangle",
+      icon: Square,
+    },
+    {
+      tool: "line",
+      icon: Minus,
+    },
+  ];
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.js</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+    <div>
+      <div className="absolute left-1/2">
+        <div className="flex gap-x-3 px-5">
+          {tools.map((tool, index) => (
+            <button
+              key={index}
+              onClick={() => setTool(tool.tool)}
+              className="bg-black px-3 py-4 text-white"
+            >
+              <tool.icon />
+            </button>
+          ))}
         </div>
       </div>
-
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-full sm:before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full sm:after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800 hover:dark:bg-opacity-30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50 text-balance`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+      <canvas
+        id="canvas"
+        width={window.innerWidth}
+        height={innerHeight}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+      >
+        canvas
+      </canvas>
+    </div>
   );
 }
