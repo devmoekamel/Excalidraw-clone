@@ -1,14 +1,12 @@
-"use client";
 import React from "react";
 
-import { Minus, Mouse, MousePointer, Square } from "lucide-react";
-import Image from "next/image";
+import { Minus, Mouse, Square } from "lucide-react";
 import { useLayoutEffect, useState } from "react";
 import rough from "roughjs";
 const generator = rough.generator();
 const CreateElement = (id, x1, y1, x2, y2, type) => {
   const roughElement =
-    type == "line"
+    type === "line"
       ? generator.line(x1, y1, x2, y2)
       : generator.rectangle(x1, y1, x2 - x1, y2 - y1);
   return { id, x1, y1, x2, y2, type, roughElement };
@@ -18,7 +16,7 @@ const distance = (a, b) =>
 const iswithinelement = (x, y, element) => {
   const { x1, y1, x2, y2, type } = element;
 
-  if (type == "rectangle") {
+  if (type === "rectangle") {
     const minX = Math.min(x1, x2);
     const maxX = Math.max(x1, x2);
     const minY = Math.min(y1, y2);
@@ -45,6 +43,7 @@ export default function Home() {
   const [elementType, setElementType] = useState("line");
   const [tool, setTool] = useState("line");
   const [selectedElement, setSelectedElement] = useState();
+  const [activeindex, setindex] = useState(0);
   // const [ac,setdrawing]= useState(false);
 
   useLayoutEffect(() => {
@@ -58,7 +57,7 @@ export default function Home() {
   const handleMouseDown = (event) => {
     const { clientX, clientY } = event;
 
-    if (tool == "selection") {
+    if (tool === "selection") {
       const element = getElementAtPosition(clientX, clientY, elements);
       setSelectedElement(element);
 
@@ -90,7 +89,7 @@ export default function Home() {
   const handleMouseMove = (event) => {
     const { clientX, clientY } = event;
 
-    if (action == "drawing") {
+    if (action === "drawing") {
       const index = elements.length - 1;
       const { x1, y1 } = elements[index];
       updateElement(index, x1, y1, clientX, clientY, tool);
@@ -137,8 +136,15 @@ export default function Home() {
           {tools.map((tool, index) => (
             <button
               key={index}
-              onClick={() => setTool(tool.tool)}
-              className="bg-black px-3 py-4 text-white"
+              onClick={() => {
+                setTool(tool.tool);
+                setindex(index);
+              }}
+              className={`px-3 py-4 ${
+                activeindex === index
+                  ? "bg-blue-600 text-white"
+                  : "bg-black text-white"
+              }`}
             >
               <tool.icon />
             </button>
@@ -148,7 +154,7 @@ export default function Home() {
       <canvas
         id="canvas"
         width={window.innerWidth}
-        height={innerHeight}
+        height={window.innerHeight}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
